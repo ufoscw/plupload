@@ -27,50 +27,34 @@
 				node.remove();
 			}
 		});
-
-		target.prepend(
-			'<div class="plupload_wrapper plupload_scroll">' +
-				'<div id="' + id + '_container" class="plupload_container">' +
-					'<div class="plupload">' +
-						'<div class="plupload_header">' +
-							'<div class="plupload_header_content">' +
-								'<div class="plupload_header_title">' + _('Select files') + '</div>' +
-								'<div class="plupload_header_text">' + _('Add files to the upload queue and click the start button.') + '</div>' +
-							'</div>' +
-						'</div>' +
-
-						'<div class="plupload_content">' +
-							'<div class="plupload_filelist_header">' +
-								'<div class="plupload_file_name">' + _('Filename') + '</div>' +
-								'<div class="plupload_file_action">&nbsp;</div>' +
-								'<div class="plupload_file_status"><span>' + _('Status') + '</span></div>' +
-								'<div class="plupload_file_size">' + _('Size') + '</div>' +
-								'<div class="plupload_clearer">&nbsp;</div>' +
-							'</div>' +
-
-							'<ul id="' + id + '_filelist" class="plupload_filelist"></ul>' +
-
-							'<div class="plupload_filelist_footer">' +
-								'<div class="plupload_file_name">' +
-									'<div class="plupload_buttons">' +
-										'<a href="#" class="plupload_button plupload_add">' + _('Add files') + '</a>' +
-										'<a href="#" class="plupload_button plupload_start">' + _('Start upload') + '</a>' +
-									'</div>' +
-									'<span class="plupload_upload_status"></span>' +
-								'</div>' +
-								'<div class="plupload_file_action"></div>' +
-								'<div class="plupload_file_status"><span class="plupload_total_status">0%</span></div>' +
-								'<div class="plupload_file_size"><span class="plupload_total_file_size">0 b</span></div>' +
-								'<div class="plupload_progress">' +
-									'<div class="plupload_progress_container">' +
-										'<div class="plupload_progress_bar"></div>' +
-									'</div>' +
-								'</div>' +
-								'<div class="plupload_clearer">&nbsp;</div>' +
-							'</div>' +
-						'</div>' +
+		
+		target.prepend(  
+			'<div class="fileArea" id="cmafFileArea"> ' +
+				'<div id="' + id + '_container " class="fileAddArea fileCont"> ' +
+					'<div class="fileAction"> ' +
+						'<button class="chkBase" id="cmafSelectAllBtn" type="button"><em class="blind">전체 다운로드</em></button> ' +
+						'<button class="button05" id="'+ id + '_browse' + '" type="button"><span class="fileAdd">삽입</span></button> ' +
+						'<span class="fileInfo"> ' +
+							'<span class="total" id="cmafTotalFileCount">총1개</span><span class="byte" id="cmafTotalFileSize">50KB</span> ' +
+						'</span> ' +
+					'</div> ' +
+					
+					'<div class="fileFold"> ' +
+						'<button id="cmafFoldBtn" class="buttonImg hover fileunfold" type="button"><span class="blind">파일목록 펼치기</span></button> ' +
+						'<button id="cmafUnFoldBtn" class="buttonImg hover filefold blind" type="button"><span class="blind">파일목록 닫기</span></button> ' +
 					'</div>' +
-				'</div>' +
+					
+					'<div id="cmafFileList" class="clfix" style="display:none;"> ' +
+						'<div class="fileList fileList02"> ' +
+							'<div class="btnCtl"> ' +
+								'<button class="button08" type="button" id="cmafIndexUpBtn"><span class="buttonCtl up">위</span></button> ' +
+								'<button class="button08" type="button" id="cmafIndexDownBtn"><span class="buttonCtl down">아래</span></button> ' +
+								'<button class="button08 del" type="button" id="cmafSelectedDelBtn"><span class="buttonCtl del">삭제</span></button> ' +
+							'</div> ' +
+							'<ul id="' + id + '_filelist"></ul> ' +
+						'</div> ' +
+					'</div> ' +
+				'</div> ' +
 				'<input type="hidden" id="' + id + '_count" name="' + id + '_count" value="0" />' +
 			'</div>'
 		);
@@ -88,7 +72,8 @@
 					id = plupload.guid();
 					target.attr('id', id);
 				}
-
+				
+				//Uploader 인스턴스 생성 및 파라미터 전달
 				uploader = new plupload.Uploader($.extend({
 					dragdrop : true,
 					container : id
@@ -96,6 +81,7 @@
 
 				uploaders[id] = uploader;
 
+				//파일상태에 따라 UI변경
 				function handleStatus(file) {
 					var actionClass;
 
@@ -114,13 +100,32 @@
 					if (file.status == plupload.UPLOADING) {
 						actionClass = 'plupload_uploading';
 					}
-
-					var icon = $('#' + file.id).attr('class', actionClass).find('a').css('display', 'block');
-					if (file.hint) {
-						icon.attr('title', file.hint);	
+					
+					//기체크되어 있던 Item 체크박스 on
+					if( file.selected == 1 ){
+						$('#' + file.id).addClass('on');
+					}
+					
+					//기업로드된 파일의 경우 파일 다운로드
+					if (file.status == plupload.ALREADY_UPLOADED) {
+						$('#' + file.id).click(function(event){
+							//기타컴퍼넌트 클릭시는 핸들링하지 않음
+							if(event.target == event.currentTarget){
+								var url = uploader.settings.downUrl + "?downloadType=multi&filePath=" + file.filePath;
+								$.fileDownload(url, {
+									successCallback: function (url) {
+										console.log("Down Success! " + filePath);
+									},
+									failCallback: function (responseHtml, url) {
+										console.log("Down Failed! " + filePath);
+									}
+								});
+							}
+						});
 					}
 				}
 
+				//프로그레스 업데이트
 				function updateTotalProgress() {
 					$('span.plupload_total_status', target).html(uploader.total.percent + '%');
 					$('div.plupload_progress_bar', target).css('width', uploader.total.percent + '%');
@@ -128,10 +133,17 @@
 						_('Uploaded %d/%d files').replace(/%d\/%d/, uploader.total.uploaded+'/'+uploader.files.length)
 					);
 				}
-
+				
 				function updateList() {
-					var fileList = $('ul.plupload_filelist', target).html(''), inputCount = 0, inputHTML;
-
+					var fileList = $('#' + id + '_filelist', target).html(''), inputCount = 0, inputHTML;
+					
+					//배열 목록이 존재하지 않으면 화면 숨기기
+					if( uploader.files.length > 0){
+						cmafUnFoldFileList(target);
+					} else {
+						cmafFoldFileList(target);
+					}
+					
 					$.each(uploader.files, function(i, file) {
 						inputHTML = '';
 
@@ -149,47 +161,76 @@
 						}
 
 						fileList.append(
-							'<li id="' + file.id + '">' +
-								'<div class="plupload_file_name"><span>' + file.name + '</span></div>' +
-								'<div class="plupload_file_action"><a href="#"></a></div>' +
-								'<div class="plupload_file_status">' + file.percent + '%</div>' +
-								'<div class="plupload_file_size">' + plupload.formatSize(file.size) + '</div>' +
-								'<div class="plupload_clearer">&nbsp;</div>' +
+							'<li id="' + file.id + '"> ' +
+								'<button class="chkBase" type="button"><em class="blind">선택</em></button> ' +
+								'<em class="icoFile ' + cmafGetFileIcoType(file.name) + '">' + cmafGetFileType(file.name) + '</em> ' +
+								file.name + '<em class="byte">' + plupload.formatSize(file.size) + '</em> ' +
+								'<button class="button" type="button" id="cmafDeleteBtn"><span class="buttonImg del04"><em class="blind">삭제</em></span></button> ' +
 								inputHTML +
 							'</li>'
 						);
-
+						
 						handleStatus(file);
-
-						$('#' + file.id + '.plupload_delete a').click(function(e) {
-							$('#' + file.id).remove();
+						
+						//삭제버튼 이벤트핸들러
+						$('#' + file.id + ' > #cmafDeleteBtn').click(function(e) {
 							uploader.removeFile(file);
-
+							e.preventDefault();
+						});
+						
+						//체크박스 이벤트핸들러
+						$('#' + file.id + ' > .chkBase').click(function(e) {
+							//체크상태 갱신하고..
+							$('#' + file.id ).toggleClass('on');
+							
+							//selected 속성값 변경하기
+							file.selected = $('#' + file.id ).hasClass('on') ? 1 : 0;
+							
+							//전체선택 상태도 갱신
+							cmafRefreshAllSelectStatus(target);
+							
 							e.preventDefault();
 						});
 					});
+					
+					var totalSize = 0;
+					$.each(uploader.files,function(index,value){
+						totalSize += value.size;
+					});
+					$('span#cmafTotalFileCount', target).html("총" + uploader.files.length + "개");
+					$('span#cmafTotalFileSize', target).html(plupload.formatSize(totalSize));
 
-					$('span.plupload_total_file_size', target).html(plupload.formatSize(uploader.total.size));
-
-					if (uploader.total.queued === 0) {
-						$('span.plupload_add_text', target).html(_('Add files.'));
-					} else {
-						$('span.plupload_add_text', target).html(uploader.total.queued + ' files queued.');
-					}
-
-					$('a.plupload_start', target).toggleClass('plupload_disabled', uploader.files.length == (uploader.total.uploaded + uploader.total.failed));
+					$('a.plupload_start', target).toggleClass('plupload_disabled', uploader.files.length == (uploader.total.uploaded + uploader.total.failed + uploader.total.alreadyUploaded));
 
 					// Scroll to end of file list
 					fileList[0].scrollTop = fileList[0].scrollHeight;
 
 					updateTotalProgress();
 
+					//전체선택 상태도 갱신
+					cmafRefreshAllSelectStatus(target);
+					
 					// Re-add drag message if there is no files
-					if (!uploader.files.length && uploader.features.dragdrop && uploader.settings.dragdrop) {
-						$('#' + id + '_filelist').append('<li class="plupload_droptext">' + _("Drag files here.") + '</li>');
-					}
+//					if (!uploader.files.length && uploader.features.dragdrop && uploader.settings.dragdrop) {
+//						$('#' + id + '_filelist').append('<li class="plupload_droptext">' + _("Drag files here.") + '</li>');
+//					}
 				}
-
+				
+				function updateFileIndex(){
+					//uploader 파일정보에서 인덱스 갱신하기..
+					uploader.files.sort(function(a,b){
+						var aIndex = $('#cmafFileList ul li', target).index($('#cmafFileList ul li#' + a.id, target));
+						var bIndex = $('#cmafFileList ul li', target).index($('#cmafFileList ul li#' + b.id, target));
+						if(aIndex == bIndex){
+							return 0;
+						} else if( aIndex > bIndex ){
+							return 1;
+						} else {
+							return -1;
+						}
+					});
+				}
+				
 				uploader.bind("UploadFile", function(up, file) {
 					$('#' + file.id).addClass('plupload_current_file');
 				});
@@ -202,6 +243,7 @@
 						target.on('click', '#' + id + '_filelist div.plupload_file_name span', function(e) {
 							var targetSpan = $(e.target), file, parts, name, ext = "";
 
+
 							// Get file name and split out name and extension
 							file = up.getFile(targetSpan.parents('li')[0].id);
 							name = file.name;
@@ -211,6 +253,7 @@
 								ext = parts[2];
 							}
 
+
 							// Display input element
 							targetSpan.hide().after('<input type="text" />');
 							targetSpan.next().val(name).focus().blur(function() {
@@ -218,37 +261,153 @@
 							}).keydown(function(e) {
 								var targetInput = $(this);
 
-								if ($.inArray(e.keyCode, [13, 27]) !== -1) {
+
+								if (e.keyCode == 13) {
 									e.preventDefault();
 
+
 									// Rename file and glue extension back on
-									if (e.keyCode === 13) {
-										file.name = targetInput.val() + ext;
-										targetSpan.html(file.name);
-									}
+									file.name = targetInput.val() + ext;
+									targetSpan.html(file.name);
 									targetInput.blur();
 								}
 							});
 						});
 					}
 
-					$('a.plupload_add', target).attr('id', id + '_browse');
-
 					up.settings.browse_button = id + '_browse';
 
 					// Enable drag/drop
-					if (up.features.dragdrop && up.settings.dragdrop) {
-						up.settings.drop_element = id + '_filelist';
-						$('#' + id + '_filelist').append('<li class="plupload_droptext">' + _("Drag files here.") + '</li>');
+					if (up.settings.dragdrop && up.features.dragdrop) {
+						up.settings.drop_element = id + '_fileDragDrop';
+						target.append(
+							'<div class="fileAddCont" id="' + id + '_fileDragDrop">' +
+								'<div class="fileAddContB">' +
+									'<span class="fileAddIco"></span><span class="fileTxt">첨부할 파일을 여기 올려주세요.</span>' +
+								'</div>' +
+								'<br />' +
+							'</div>'
+						);
+						
+						//DragOver 이벤트 핸들러
+						var dragOutFuncId = null;
+						$(window).bind('dragover',function(){
+							//기존 timer는 초기화
+							window.clearTimeout(dragOutFuncId);
+							
+							//사이즈를 늘리고
+							$('#' + id + '_fileDragDrop .fileAddContB').addClass('drag');
+							
+							//사이즈 원복 타이머 초기화
+							dragOutFuncId = window.setTimeout(function(){
+								$('#' + id + '_fileDragDrop .fileAddContB').removeClass('drag');
+							}, 100);
+						});
 					}
 
 					$('#' + id + '_container').attr('title', 'Using runtime: ' + res.runtime);
 
+					//전체선택
+					$('#cmafSelectAllBtn', target).click(function(){
+						cmafSelectAllToggle(target);
+						$.each(uploader.files, function(index,value){
+							value.selected = $('#' + value.id, target ).hasClass('on') ? 1 : 0;
+						});
+					});
+					
+					//접기버튼
+					$("#cmafFoldBtn", target).click(function(){
+						cmafFoldFileList(target);
+					});
+					//펴기
+					$("#cmafUnFoldBtn", target).click(function(){
+						if(uploader.files.length > 0){
+							cmafUnFoldFileList(target);
+						}
+					});
+					
+					//인덱스(위로)
+					$('#cmafIndexUpBtn', target).click(function(){
+						var selectedItems = $('#cmafFileList li.on', target);
+						if( selectedItems.length > 0 ){
+							//이동가능한지 확인
+							//첫번째 선택된 아이템의 index가 0이면 리턴
+							if($('#cmafFileList ul li', target).index(selectedItems[0]) == 0){
+								return;
+							}
+							$.each(selectedItems, function(i, currItem){
+								var prevItem = $(currItem).prev();
+								$(prevItem).before(currItem);
+								
+								//첫번째 아이템이 스크롤바를 넘어가면 스크롤바를 위로
+								if( i == 0 ){
+									var currItemTop = $(currItem).position().top - $('#' + id + '_filelist', target).position().top;
+									var scrollDiv = $('#cmafFileList', target).scrollTop();
+									
+									if( scrollDiv > currItemTop ){
+										$('#cmafFileList', target).scrollTop(currItemTop);
+									}
+								}
+								
+								//uploader 파일정보에서 인덱스 갱신하기..
+								updateFileIndex();
+							});
+						} else {
+							alert("이동할 항목을 선택해주세요.");
+						}
+					});
+					
+					//인덱스(아래로)
+					$('#cmafIndexDownBtn', target).click(function(){
+						var selectedItems = $('#cmafFileList li.on', target);
+						if( selectedItems.length > 0 ){
+							//마지막 선택된 아이템의 index가 마지막이면 리턴
+							if($('#cmafFileList ul li', target).index(selectedItems[selectedItems.length-1]) == $('#cmafFileList ul li', target).length-1){
+								return;
+							}
+							for(var i = 0; i < selectedItems.length; ++i){
+								var currItem = selectedItems[selectedItems.length - i - 1];
+								var nextItem = $(currItem).next();
+								$(nextItem).after(currItem);
+								
+								//마지막 아이템이 스크롤바를 넘어가면 스크롤바를 아래로
+								if( i == 0){
+									var currItemBottom = $(currItem).position().top - $('#' + id + '_filelist', target).position().top + $(currItem).height();
+									var scrollDiv = $('#cmafFileList', target).scrollTop();
+									
+									if( $('#cmafFileList', target).height() + scrollDiv < currItemBottom ){
+										$('#cmafFileList', target).scrollTop(currItemBottom - $('#cmafFileList', target).height());
+									}
+								}
+								
+							};
+							
+							//uploader 파일정보에서 인덱스 갱신하기..
+							updateFileIndex();
+						} else {
+							alert("이동할 항목을 선택해주세요.");
+						}
+					});
+					
+					//선택 삭제
+					$('#cmafSelectedDelBtn', target).click(function(){
+						var selectedItems = $('#cmafFileList li.on', target);
+						if( selectedItems.length > 0 ){
+							var selectedFileIds = [];
+							$.each($('#cmafFileList li.on', target),function(index, value){
+								selectedFileIds.push(value.id);
+							});
+							uploader.removeFilesByIds(selectedFileIds);
+						} else {
+							alert("삭제할 항목을 선택해주세요.");
+						}
+					});
+					
+					
 					$('a.plupload_start', target).click(function(e) {
 						if (!$(this).hasClass('plupload_disabled')) {
 							uploader.start();
 						}
-
 						e.preventDefault();
 					});
 
@@ -260,6 +419,14 @@
 					$('a.plupload_start', target).addClass('plupload_disabled');
 				});
 
+				uploader.bind("PostInit", function(up) {
+					// features are populated only after input components are fully instantiated
+//					if (up.settings.dragdrop && up.features.dragdrop) {
+//						$('#' + id + '_filelist').append('<li class="plupload_droptext">' + _("Drag files here.") + '</li>');
+//					}
+				});
+
+				
 				uploader.init();
 
 				uploader.bind("Error", function(up, err) {
@@ -273,13 +440,14 @@
 						}
 
 						if (err.code == plupload.FILE_SIZE_ERROR) {
-							alert(_("Error: File too large: ") + file.name);
+							alert(_("Error: File too large:") + " " + file.name);
 						}
 
+
 						if (err.code == plupload.FILE_EXTENSION_ERROR) {
-							alert(_("Error: Invalid file extension: ") + file.name);
+							alert(_("Error: Invalid file extension:") + " " + file.name);
 						}
-						
+
 						file.hint = message;
 						$('#' + file.id).attr('class', 'plupload_failed').find('a').css('display', 'block').attr('title', message);
 					}
@@ -289,10 +457,10 @@
 					if (uploader.state === plupload.STARTED) {
 						$('li.plupload_delete a,div.plupload_buttons', target).hide();
 						$('span.plupload_upload_status,div.plupload_progress,a.plupload_stop', target).css('display', 'block');
-						$('span.plupload_upload_status', target).html('Uploaded ' + uploader.total.uploaded + '/' + uploader.files.length + ' files');
+						$('span.plupload_upload_status', target).text('Uploaded ' + (uploader.total.uploaded + uploader.total.alreadyUploaded ) + '/' + uploader.files.length + ' files');
 
 						if (settings.multiple_queues) {
-							$('span.plupload_total_status,span.plupload_total_file_size', target).show();
+							$('span.plupload_total_status', target).show();
 						}
 					} else {
 						updateList();
@@ -314,10 +482,10 @@
 					handleStatus(file);
 					updateTotalProgress();
 
-					if (settings.multiple_queues && uploader.total.uploaded + uploader.total.failed == uploader.files.length) {
+					if (settings.multiple_queues && uploader.total.alreadyUploaded + uploader.total.uploaded + uploader.total.failed == uploader.files.length) {
 						$(".plupload_buttons,.plupload_upload_status", target).css("display", "inline");
 						$(".plupload_start", target).addClass("plupload_disabled");
-						$('span.plupload_total_status,span.plupload_total_file_size', target).hide();
+						$('span.plupload_total_status', target).hide();
 					}
 				});
 

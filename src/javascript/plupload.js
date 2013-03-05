@@ -155,6 +155,14 @@
 		 * @final
 		 */
 		DONE : 5,
+		
+		/**
+		 * File has been uploaded successfully
+		 *
+		 * @property DONE
+		 * @final
+		 */
+		ALREADY_UPLOADED : 6,
 
 		// Error constants used by the Error event
 
@@ -894,7 +902,7 @@
 	 * @param {Object} settings Initialization settings, to be used by the uploader instance and runtimes.
 	 */
 	plupload.Uploader = function(settings) {
-		var events = {}, total, files = [], startTime, disabled = false;
+		var events = {}, total, files = [], alreadyUploadedfiles = [], startTime, disabled = false;
 
 		// Inital total state
 		total = new plupload.QueueProgress();
@@ -953,6 +961,8 @@
 
 				if (file.status == plupload.DONE) {
 					total.uploaded++;
+				} else if (file.status == plupload.ALREADY_UPLOADED) {
+					total.alreadyUploaded++;
 				} else if (file.status == plupload.FAILED) {
 					total.failed++;
 				} else {
@@ -1335,6 +1345,48 @@
 					}
 				}
 			},
+			
+			/**
+			 * Remove files by id.
+			 *
+			 * @method removeFilesByIds
+			 * @param {Array} fileIds FileIds to remove from queue.
+			 * @return {Array} Array of files that was removed.
+			 */
+			removeFilesByIds : function(fileIds) {
+				var i;
+				var removed = [];
+				for (i = files.length - 1; i >= 0; i--) {
+					if (fileIds.indexOf(files[i].id) >= 0) {
+						removed.push(files.splice(i === undef ? 0 : i, 1 === undef ? files.length : 1)[0]);
+					}
+				}
+				this.trigger("FilesRemoved", removed);
+				this.trigger("QueueChanged");
+				
+				return removed;
+			},
+
+			addUploadedFiles : function(uploadedFiles){
+				var triggerTarget = this;
+				if( uploadedFiles.length > 0 ){
+					plupload.each(uploadedFiles,function(value,index){
+						var file = new plupload.File();
+						$.extend(file,value);
+						file.id = plupload.guid();
+						file.percent = 100;
+						file.status = plupload.ALREADY_UPLOADED;
+						file.filePath = value.filePath;
+						files.push(file);
+						alreadyUploadedfiles.push(file);
+					});
+					
+					window.setTimeout(function() {
+						triggerTarget.trigger("QueueChanged");
+						triggerTarget.refresh();
+					}, 1);
+				}
+			},
 
 			/**
 			 * Removes part of the queue and returns the files removed. This will also trigger the FilesRemoved and QueueChanged events.
@@ -1354,6 +1406,11 @@
 				this.trigger("QueueChanged");
 
 				return removed;
+			},
+			
+			clear : function() {
+				alreadyUploadedfiles.splice(0,alreadyUploadedfiles.length);
+				return this.splice(0,files.length);
 			},
 
 			/**
@@ -1657,6 +1714,12 @@
 		 * @see plupload
 		 */
 		self.status = 0;
+		
+		self.selected = 0;
+		
+		self.index = 0;
+		
+		self.filePath = '';
 	};
 
 	/**
@@ -1723,6 +1786,8 @@
 		 * @type Number
 		 */
 		self.uploaded = 0;
+		
+		self.alreadyUploaded = 0;
 
 		/**
 		 * Number of files failed to upload.
@@ -1762,7 +1827,7 @@
 		 * @method reset
 		 */
 		self.reset = function() {
-			self.size = self.loaded = self.uploaded = self.failed = self.queued = self.percent = self.bytesPerSec = 0;
+			self.size = self.loaded = self.uploaded = self.alreadyUploaded = self.failed = self.queued = self.percent = self.bytesPerSec = 0;
 		};
 	};
 
